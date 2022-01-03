@@ -1,0 +1,59 @@
+<!--
+  Copyright 2022, Bart Butenaers
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<script type="text/javascript">
+    RED.nodes.registerType('process-resources',{
+        category: 'performance',
+        color: '#a6bbcf',
+        defaults: {
+            name: {value:""},
+            outputField: {value:"payload"},
+            analyzeChildren: {value:true}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "font-awesome/fa-spinner",
+        label: function() {
+            return this.name || "process resources";
+        },
+        oneditprepare: function() {
+            // Show the outputField value in a typedinput element (dropdown with only 'msg')
+            $("#node-input-outputField").typedInput({
+                default: 'msg',
+                types:['msg']
+            });
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="process-resources">
+    <div class="form-row">
+        <label for="node-input-outputField"><i class="fa fa-list"></i> Output info</label>
+        <input id="node-input-outputField" type="text" style="width: 70%">
+    </div>
+    <div class="form-row">
+        <input type="checkbox" id="node-input-analyzeChildren" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-analyzeChildren" style="width:70%;"> Analyze also the child processes</label>
+    </div> 
+    <br>
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="process-resources">
+    <p>A Node-RED node to monitor the OS processes related to Node-RED.</p>
+    <p>Node-RED runs in a process, which is called the <i>"main"</i> process in this node.  When background processes are spawned, these will become <i>"child"</i> processes of the main process.  This node can be used to calculate the system resources consumed by all these processes.</p>
+    <p><strong>Analyze also the child processes:</strong><br/>
+    When this option is selected, the child processes are also being analyzed.  Which means the background processes, which have been spawned by the Node-RED parent NodeJs process.  In this case the entire subtree of child processes will be included (i.e. also child processes being spawned by child processes...).</p>
+</script>
