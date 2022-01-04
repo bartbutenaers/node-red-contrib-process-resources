@@ -40,8 +40,11 @@
                     });
                     
                     // Calculate the total cpu and memory of all child processes and the parent process together
-                    var cpu = stats.cpu + cpuChildren;
-                    var memory = stats.memory + memoryChildren;
+                    var cpuTotal = stats.cpu + cpuChildren;
+                    var memoryTotal = stats.memory + memoryChildren;
+                    
+                    // Count the number of processes (i.e. the main process and the number of child processes)
+                    var processCount = childrenInfo.length + 1;
                     
                     var output = {
                         parent: {
@@ -52,8 +55,9 @@
                         children: childrenInfo,
                         cpuChildren: cpuChildren,
                         memoryChildren: memoryChildren,
-                        cpu: cpu,
-                        memory: memory
+                        cpuTotal: cpuTotal,
+                        memoryTotal: memoryTotal,
+                        processCount: processCount
                     }
                     
                     try {
