@@ -28,7 +28,7 @@
         
         function analyzeChildProcess(childPids, msg, childrenInfo) {
             if(childPids.length === 0) {
-                // After all child processes have been analyzed, the parent (Node-RED) process needs to be analyzed
+                // After all child processes have been analyzed, the main (Node-RED) process needs to be analyzed
                 pidUsage(process.pid, function (err, stats) {
                     var cpuChildren = 0;
                     var memoryChildren = 0;
@@ -39,7 +39,7 @@
                         memoryChildren += childInfo.memory;
                     });
                     
-                    // Calculate the total cpu and memory of all child processes and the parent process together
+                    // Calculate the total cpu and memory of all child processes and the main process together
                     var cpuTotal = stats.cpu + cpuChildren;
                     var memoryTotal = stats.memory + memoryChildren;
                     
@@ -47,7 +47,7 @@
                     var processCount = childrenInfo.length + 1;
                     
                     var output = {
-                        parent: {
+                        main: {
                             cpu: stats.cpu,
                             memory: stats.memory,
                             pid: stats.pid
