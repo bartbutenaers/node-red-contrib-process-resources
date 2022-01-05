@@ -14,6 +14,8 @@ Please buy my wife a coffee to keep her happy, while I am busy developing Node-R
 
 ## Node usage
 
+While my [node-red-contrib-cpu](https://github.com/bartbutenaers/node-red-contrib-cpu) node measures the CPU usage per core on the server, this node calculates the CPU/memory usage of the Node-RED process and all of its child processes.  Both nodes have their own purpose for performance monitoring.
+
 ### Processes and threads (introduction)
 Node-RED runs in its own process on the operating system, which is called the ***main process*** in this readme page.  Inside that process NodeJs will start a thread containing an ***event loop***, which executes functions when the corresponding event occurs:
 
