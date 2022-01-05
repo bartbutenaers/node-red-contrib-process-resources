@@ -90,6 +90,13 @@ Remarks:
 + In contradiction to the line chart example above, every child process get its own piece of the pie.   Instead of one piece of the pie for all child processes (containing the sum of the CPU/memory usage of all processes).  Because - in contradiction to the line charts - the pie doesn't show any historical data, so it is less messy if child processes are spawned or aborted.  But of course there might be use cases, where it is more useful to show them all summed into a single piece of the pie...
 + The pie charts can be changed to bar charts, by only changing the chart type.  But keep in mind that bars will be added and removed continuously, when child processes are being spawned or aborted.
 
+## Node properties
+
+###  Analyze also the child processes
+When this option is selected, the child processes are also being analyzed, which means the entire subtree of child processes will be included (i.e. also child processes being spawned by child processes...).
+
+It might be useful to turn off this option, when you are only interested to monitor the resources used by the main thread.  Because otherwise system resources would be wasted, by analyzing the process tree for nothing...
+
 ## Simulate high load (for testing)
 
 To get started with this node, the easiest way is to use a Node-RED system that doesn't do much (e.g. by disabling all the tabs/flows).  Otherwise all the running nodes will consume CPU and memory, which generates *"noise"* in your measurements (which makes it more difficult to interpret).
