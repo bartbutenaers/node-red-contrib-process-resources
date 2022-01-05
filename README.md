@@ -14,9 +14,28 @@ Please buy my wife a coffee to keep her happy, while I am busy developing Node-R
 
 ## Node usage
 
-### Purpose of this node
-Node-RED runs in its own process on the operating system, which is called the *"main"* process in this readme page.  When nodes need to do processing that requires a lot of CPU, most of the time a new background processes will be ***spawned***.  This means that a new process will be started on the operating system, which will be used to execute the high CPU intensitive task.  This way it can be avoided that Node-RED becomes *unresponsive*: indeed the new process will have its own event loop, so the the other Node-RED tasks can keep running without being blocked by the CPU intensive task.  The new spawned process will be a ***child process*** of the main process.  And of course those child processes, can again contain nested child processes and so on...  That way a complete process tree is being created.
+### Processes and threads (introduction)
+Node-RED runs in its own process on the operating system, which is called the ***main*** process in this readme page.  Inside that process NodeJs will start a thread containing an ***event loop***, which runs functions when the corresponding event occurs:
 
+![process](https://user-images.githubusercontent.com/14224149/148173089-f4cb1dc6-2960-4e44-a185-1235a4bc7796.png)
+
+NodeJs (so also Node-RED) can become unresponsive when this event loop cannot handle the work of all functions anymore, which can occur:
++ When one of the function consumes all the CPU time, which means it is a 'blocking' function.
++ When the combination of multiple functions consume all the CPU time, because it is just too much work.
+
+Since a thread (and its event loop) run on a single core of your processor, it will be beneficial to ***spawn*** an new process (containing another thread and event loop).  The main process can pass CPU intensitive work to that ***child process***, which will be executed on one of the other available cores of the processor:
+
+![child processes](https://user-images.githubusercontent.com/14224149/148173171-9ecbd6d3-78c0-4fbc-b898-428cc9f8225b.png)
+
+Multiple of those child processes can be created, to avoid the main thread event loop being blocked.  Each child process can of course spawn its child process, thus creating a ***process tree*** based on the process dependencies.  And there will be a two-way communication between the main process and its child processes.  That way we can keep Node-RED responsive, and at the same time execute high CPU intensive tasks.  
+
+Since spawning new child processes also consumes quite some system resources, NodeJs later on developed a more lightweight mechanism for parallel processing.  When creating a new ***worker***, a new thread will be started within the main process.  This way the main process can execute work on multiple cores of your processor:
+
+![image](https://user-images.githubusercontent.com/14224149/148174141-de76964c-c4e7-4a97-83b2-6aa3cc22887d.png)
+
+Because the worker thread runs inside the main process, it will have the same process id and it will share memory with the main thread.
+
+### Purpose of this node
 Of course when the system resources (memory, cpu...) of the host server are exhausted, the main thread will also be slowed down.  Which means that Node-RED will become unresponsive anyway.  In that case you need to start a performance analysis, to determine which process is consuming most of the system resources.
 
 This node has been developed in order to assist you a bit with such a performance analysis:
