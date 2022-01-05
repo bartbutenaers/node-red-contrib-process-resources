@@ -15,7 +15,7 @@ Please buy my wife a coffee to keep her happy, while I am busy developing Node-R
 ## Node usage
 
 ### Processes and threads (introduction)
-Node-RED runs in its own process on the operating system, which is called the ***main*** process in this readme page.  Inside that process NodeJs will start a thread containing an ***event loop***, which runs functions when the corresponding event occurs:
+Node-RED runs in its own process on the operating system, which is called the ***main process*** in this readme page.  Inside that process NodeJs will start a thread containing an ***event loop***, which executes functions when the corresponding event occurs:
 
 ![process](https://user-images.githubusercontent.com/14224149/148173089-f4cb1dc6-2960-4e44-a185-1235a4bc7796.png)
 
@@ -23,13 +23,13 @@ NodeJs (so also Node-RED) can become unresponsive when this event loop cannot ha
 + When one of the function consumes all the CPU time, which means it is a 'blocking' function.
 + When the combination of multiple functions consume all the CPU time, because it is just too much work.
 
-Since a thread (and its event loop) run on a single core of your processor, it will be beneficial to ***spawn*** an new process (containing another thread and event loop).  The main process can pass CPU intensitive work to that ***child process***, which will be executed on one of the other available cores of the processor:
+Since a thread (and its event loop) runs on a single core of your processor, it will be beneficial to ***spawn*** a new process (containing another thread and event loop).  The main process can pass CPU intensitive work to that ***child process***, which will be executed on one of the other available cores of the processor:
 
 ![child processes](https://user-images.githubusercontent.com/14224149/148173171-9ecbd6d3-78c0-4fbc-b898-428cc9f8225b.png)
 
-Multiple of those child processes can be created, to avoid the main thread event loop being blocked.  Each child process can of course spawn its child process, thus creating a ***process tree*** based on the process dependencies.  And there will be a two-way communication between the main process and its child processes.  That way we can keep Node-RED responsive, and at the same time execute high CPU intensive tasks.  
+Multiple of those child processes can be created, to avoid the main thread event loop being blocked.  Each child process can of course spawn its child process, thus creating a ***process tree*** based on the process dependencies.  There will be a two-way communication between the main process and its child processes.  That way we can keep Node-RED responsive, and at the same time execute high CPU intensive tasks.  
 
-Since spawning new child processes also consumes quite some system resources, NodeJs later on developed a more lightweight mechanism for parallel processing.  When creating a new ***worker***, a new thread will be started within the main process.  This way the main process can execute work on multiple cores of your processor:
+Since spawning new child processes also consumes quite some system resources, NodeJs later on developed a more lightweight mechanism for parallel processing.  When creating a new ***worker***, a new thread will be started 'within' the main process.  This way the main process can distribute work across multiple cores of your processor:
 
 ![image](https://user-images.githubusercontent.com/14224149/148174141-de76964c-c4e7-4a97-83b2-6aa3cc22887d.png)
 
@@ -42,13 +42,16 @@ This node has been developed in order to assist you a bit with such a performanc
 1. It determines which child processes the main process has.
 2. It determines the cpu and memory usage of both the main process and all its child processes.
 
+### Limitation
+Currently I haven't found a way yet to determine the CPU usage per thread.  As a result you cannot see how much CPU each worker thread is consuming.  You can only see how much CPU the entire process consumes, i.e. the sum of the CPU usage of all its threads.
+
 ### Output message
 Simply inject a (random) input message, and as a result an output message will be send.  The output message looks like this, in case of one single child process:
 
 ![output msg](https://user-images.githubusercontent.com/14224149/148134001-07cfd9e5-b0cb-4c59-9bb3-049cc2f1ef41.png)
 
-+ The *'main'* section contains information about the main process, i.e. the process where NodeJs and Node-RED are running.
-+ The *'children'* section contains the same information for every child process.
++ The *'main'* section contains information about the main process, i.e. the process where Node-RED is running.
++ The *'children'* section contains the information about every child process.
 + The *'cpuChildren'* contains the total CPU usage for all child processes together.
 + The *'memoryChildren'* contains the total memory usage for all child processes together.
 + The *'cpuTotal'* contains the total CPU usage for all processes together (i.e. both the main process and all of its child processes).
@@ -56,7 +59,7 @@ Simply inject a (random) input message, and as a result an output message will b
 + The *'processCount'* contains the total number of processes (i.e. both the main process and all of its child processes).
 
 ### Visualization in line charts
-Line charts are a nice way to show the history of these metrics, since you can easily spot trends.
+Line charts are a useful way to show the history of these metrics, which allow you to easily spot (interruptions of) trends.
 
 The following flow fills 3 separate line charts (cpu, memory and process count):
 
@@ -69,39 +72,36 @@ Which will result in something like this:
 
 ![line charts](https://user-images.githubusercontent.com/14224149/148137991-55357bc1-3f9b-415f-9fc9-a637ec6195db.png)
 
-Note that there I have used 1 line for all the child processes (which represents the sum of the CPU/memory usage of all processes), instead of a line per child process.  The reason is that child processes can be created and aborted continuously, which would result in lines being stopped and started.  That would look very messy.  On the other hand it might be usefull to show them as separate lines, to determine easily which process (pid) is consuming the most CPU...
+Note that there I have used 1 single line in the chart for all the child processes (which represents the sum of the CPU/memory usage of all processes), instead of a separate line per child process.  The reason is that child processes can be spawned and aborted continuously, which would result in lines being stopped and started all over the place.  That would look very messy.  However in some cases it might be usefull to show them as separate lines, to determine easily which process (pid) is consuming the most CPU...
 
 ### Visualization in pie charts
-Pie charts are convenient to show the distribution of the metrics across the individual processes.
+Pie charts are convenient to show the distribution of the CPU/memory usage across the individual processes.
 
-TODO
+![pie charts flow](https://user-images.githubusercontent.com/14224149/148264327-20b86d85-28e9-409b-81ba-32f57e9f8f25.png)
+```
+[{"id":"5d7ea767b1f29a8a","type":"inject","z":"f3e346780eaa6c3c","name":"Every 3 seconds","props":[{"p":"payload"}],"repeat":"","crontab":"","once":false,"onceDelay":0.1,"topic":"","payloadType":"date","x":340,"y":1280,"wires":[["d720e95ec17b8a3d"]]},{"id":"d720e95ec17b8a3d","type":"process-resources","z":"f3e346780eaa6c3c","name":"","outputField":"payload","analyzeChildren":true,"x":560,"y":1280,"wires":[["390133c39dac03a3","f006a5237512fcdd"]]},{"id":"f006a5237512fcdd","type":"function","z":"f3e346780eaa6c3c","name":"Compose cpu chart data","func":"var chartInput = {\n    \"series\": [\"X\"],\n    \"data\": [[]],\n    \"labels\": []\n};\n\n// Avoid that the pie disappears (for main cpu value 0)\nif (msg.payload.main.cpu === 0) msg.payload.main.cpu = 0.1;\n\n// Add the cpu of the main process first\nchartInput.data[0].push(msg.payload.main.cpu);\nchartInput.labels.push(msg.payload.main.pid + \" (main)\");\n\n// Add the cpu of all child processes\nmsg.payload.children.forEach(function(child) {\n    // Avoid that the pie disappears (for child cpu value 0)\n    if (child.cpu === 0) child.cpu = 0.1;\n    chartInput.data[0].push(child.cpu);\n    chartInput.labels.push(child.pid + \" (child)\");\n});\n\nreturn { payload:[chartInput] };","outputs":1,"noerr":0,"initialize":"","finalize":"","libs":[],"x":810,"y":1280,"wires":[["5bc46029163c4dad"]]},{"id":"5bc46029163c4dad","type":"ui_chart","z":"f3e346780eaa6c3c","name":"CPU per process id - Pie chart","group":"89749fb7.87f01","order":3,"width":"7","height":"6","label":"CPU per process id - Pie chart","chartType":"pie","legend":"true","xformat":"HH:mm:ss","interpolate":"linear","nodata":"","dot":false,"ymin":"","ymax":"","removeOlder":1,"removeOlderPoints":"","removeOlderUnit":"3600","cutout":"30","useOneColor":false,"useUTC":false,"colors":["#1f77b4","#aec7e8","#ff7f0e","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5"],"outputs":1,"useDifferentColor":false,"className":"","x":1110,"y":1280,"wires":[[]]},{"id":"390133c39dac03a3","type":"function","z":"f3e346780eaa6c3c","name":"Compose memory chart data","func":"var chartInput = {\n    \"series\": [\"X\"],\n    \"data\": [[]],\n    \"labels\": []\n};\n\n// Avoid that the pie disappears (for main memory value 0)\nif (msg.payload.main.memory === 0) msg.payload.main.memory = 0.1;\n\n// Add the memory of the main process first\nchartInput.data[0].push(msg.payload.main.memory);\nchartInput.labels.push(msg.payload.main.pid + \" (main)\");\n\n// Add the memory of all child processes\nmsg.payload.children.forEach(function(child) {\n    // Avoid that the pie disappears (for child memory value 0)\n    if (child.memory === 0) child.memory = 0.1;\n    chartInput.data[0].push(child.memory);\n    chartInput.labels.push(child.pid + \" (child)\");\n});\n\nreturn { payload:[chartInput] };","outputs":1,"noerr":0,"initialize":"","finalize":"","libs":[],"x":820,"y":1320,"wires":[["01be4e418c18c5b0"]]},{"id":"01be4e418c18c5b0","type":"ui_chart","z":"f3e346780eaa6c3c","name":"Memory per process id - Pie chart","group":"89749fb7.87f01","order":3,"width":"7","height":"6","label":"Memory per process id - Pie chart","chartType":"pie","legend":"true","xformat":"HH:mm:ss","interpolate":"linear","nodata":"","dot":false,"ymin":"","ymax":"","removeOlder":1,"removeOlderPoints":"","removeOlderUnit":"3600","cutout":"30","useOneColor":false,"useUTC":false,"colors":["#1f77b4","#aec7e8","#ff7f0e","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5"],"outputs":1,"useDifferentColor":false,"className":"","x":1120,"y":1320,"wires":[[]]},{"id":"89749fb7.87f01","type":"ui_group","name":"Message Profiler","tab":"d7901f40.2659d","order":2,"disp":true,"width":"16","collapse":false,"className":""},{"id":"d7901f40.2659d","type":"ui_tab","name":"Charts","icon":"dashboard","order":40,"disabled":false,"hidden":false}]
+```
 
-Note that every child process get its own piece of the pie, instead of one piece of the pie for all child processes (containing the sum of the CPU/memory usage of all processes).  Because - in contradiction to the line charts - the pie doesn't show any historical data, so it is less messy if child processes are created or aborted.  But of course it might be usefull to show them all summed into a single piece of the pie...
+Which looks like this:
 
+![pie charts](https://user-images.githubusercontent.com/14224149/148266001-b521dd63-6f07-44c5-ae67-a207d2dbffca.png)
 
-TODO: move to wiki ...
+Remarks:
++ In contradiction to the line chart example above, every child process get its own piece of the pie.   Instead of one piece of the pie for all child processes (containing the sum of the CPU/memory usage of all processes).  Because - in contradiction to the line charts - the pie doesn't show any historical data, so it is less messy if child processes are spawned or aborted.  But of course there might be use cases, where it is more useful to show them all summed into a single piece of the pie...
++ The pie charts can be changed to bar charts, by only changing the chart type.  But keep in mind that bars will be added and removed continuously, when child processes are being spawned or aborted.
 
-Let's explain this with an example flow:
+## Simulate high load (for testing)
 
-![image](https://user-images.githubusercontent.com/14224149/148019376-06c9dfac-7559-446d-a64c-f8ff683ab578.png)
+To get started with this node, the easiest way is to use a Node-RED system that doesn't do much (e.g. by disabling all the tabs/flows).  Otherwise all the running nodes will consume CPU and memory, which generates *"noise"* in your measurements (which makes it more difficult to interpret).
 
-1. Start/stop high intensitive CPU work in the Node-RED main thread, to simulate a performance issue.
+The following flow can be imported to create high intensive controllable CPU usage (not memory!):
 
-   Note: you can play with the CPU usage, by adjusting the parameters in the function node.  Currently a timer will use the CPU during 500 msec every 1000 msec, which means about 50% extra load.  When you increase the percentage, be aware that Node-RED will become ***inresponsive***, because you are in the main process (whose event loop needs to do also all the other Node-RED related work)!!
-
-2. Start/stop extra web workers, which again execute high intensitive CPU work.  You will see that the CPU of the main process will be change, because web workers are ***threads with the main process with the same process id (pid)***.  Which is a lightweight solution compared to creating child processes. 
-
-   There is a *limitation* of this node: I didn't find yet how to determine the CPU usage per thread in the Google V8 Javascript engine... 
-
-3. Start/stop extra processes, which again execute high intensitive CPU work.  By ***spawning*** extra processes, they will become child processes of the main thread.  Which means they will show up as separate processes with their own process id (pid).
-
-
-
-### Limitation
-
-
-### Monitoring CPU
-
-### Monitoring Memory
-
-### Monitoring the process count
+![image](https://user-images.githubusercontent.com/14224149/148266224-89416281-4999-4e44-9309-0186c1651973.png)
+```
+[{"id":"a00a54531685a00b","type":"function","z":"f3e346780eaa6c3c","name":"Manage worker threads","func":"switch(msg.payload) {\n    case \"create_worker\":\n        debugger;\n        var newWorker = new workerThreads.Worker('./web_worker_test_script.js');\n        context.workers.push(newWorker);\n        node.warn(\"Created new worker thread in the main process\");\n        break;\n    case \"terminate_worker\":\n        // Get and remove the first worker from the array\n        var workerToTerminate = context.workers.shift();\n        \n        if (!workerToTerminate) {\n            node.error(\"There are no workers to terminate\", msg);\n        }\n        else {\n            workerToTerminate.terminate();\n            node.warn(\"Terminated worker thread in the main process\");\n        }\n}\n\nnode.status({fill:\"green\", shape:\"dot\", text:context.workers.length + \" workers\"});","outputs":0,"noerr":0,"initialize":"var script = \n\"function blockCpuFor(ms) {                         \" +\n\"    var now = new Date().getTime();                \" +\n\"    var result = 0;                                \" +\n\"    while(true) {                                  \" +\n\"        result += Math.random() * Math.random();   \" +\n\"        if (new Date().getTime() > now +ms)        \" +\n\"            return;                                \" +\n\"    }                                              \" +\n\"}                                                  \" +\n\"                                                   \" +\n\"setInterval(function() {                           \" +\n\"    blockCpuFor(500);                              \" +\n\"} , 1000);                                         \"\n\nfs.writeFile('web_worker_test_script.js', script, function (err) {\n    if (err) {\n        node.error(\"Cannot create web_worker_test_script.js file: \" + err);\n    }\n});\n\nnode.status({fill:\"green\", shape:\"dot\", text:\"0 workers\"});\n\ncontext.workers = [];","finalize":"context.workers.forEach(function(workerToTerminate) {\n    workerToTerminate.terminate();\n})\n\ncontext.workers = [];\n\nfs.unlink('./web_worker_test_script.js', function(err) {\n    if (err) {\n        node.error(\"Cannot remove the web_worker_test_script. file\");\n    }\n})\n\nnode.status({fill:\"green\", shape:\"dot\", text:\"0 workers\"});","libs":[{"var":"fs","module":"fs"},{"var":"workerThreads","module":"worker_threads"}],"x":670,"y":640,"wires":[]},{"id":"7da2f9efe327f572","type":"inject","z":"f3e346780eaa6c3c","name":"Create worker thread","props":[{"p":"payload"}],"repeat":"","crontab":"","once":false,"onceDelay":0.1,"topic":"","payload":"create_worker","payloadType":"str","x":400,"y":640,"wires":[["a00a54531685a00b"]]},{"id":"ebdcae1127007a21","type":"inject","z":"f3e346780eaa6c3c","name":"Terminate worker thread","props":[{"p":"payload"}],"repeat":"","crontab":"","once":false,"onceDelay":0.1,"topic":"","payload":"terminate_worker","payloadType":"str","x":410,"y":680,"wires":[["a00a54531685a00b"]]},{"id":"d2130d2d472f793d","type":"function","z":"f3e346780eaa6c3c","name":"Manage child processes","func":"switch(msg.payload) {\n    case \"create_child_process\":\n        var newChildProcess = childProcess.spawn('node', ['./child_process_test_script.js']);\n        context.childProcesses.push(newChildProcess);\n        node.warn(\"Created new child process with pid = \" + newChildProcess.pid);\n        break;\n    case \"kill_child_process\":\n        // Get and remove the first child process from the array\n        var childProcessToKill = context.childProcesses.shift();\n        \n        if (!childProcessToKill) {\n            node.error(\"There are no child processes to kill\", msg);\n        }\n        else {\n            childProcessToKill.kill();\n            node.warn(\"Killed child process with pid = \" + childProcessToKill.pid);\n        }\n        break;\n}\n\nnode.status({fill:\"green\", shape:\"dot\", text:context.childProcesses.length + \" child processes\"});","outputs":0,"noerr":0,"initialize":"var script = \n\"function blockCpuFor(ms) {                         \" +\n\"    var now = new Date().getTime();                \" +\n\"    var result = 0;                                \" +\n\"    while(true) {                                  \" +\n\"        result += Math.random() * Math.random();   \" +\n\"        if (new Date().getTime() > now +ms)        \" +\n\"            return;                                \" +\n\"    }                                              \" +\n\"}                                                  \" +\n\"                                                   \" +\n\"setInterval(function() {                           \" +\n\"    blockCpuFor(500);                              \" +\n\"} , 1000);                                         \"\n\nfs.writeFile('./child_process_test_script.js', script, function (err) {\n    if (err) {\n        node.error(\"Cannot create child_process_test_script.js file: \" + err);\n    }\n});\n\nnode.status({fill:\"green\", shape:\"dot\", text:\"0 child processes\"});\n\ncontext.childProcesses = [];","finalize":"context.childProcesses.forEach(function(childProcessToKill) {\n    childProcessToKill.kill();\n})\n\ncontext.childProcesses = [];\n\nfs.unlink('./child_process_test_script.js', function(err) {\n    if (err) {\n        node.error(\"Cannot remove the child_process_test_script. file\");\n    }\n})\n\nnode.status({fill:\"green\", shape:\"dot\", text:\"0 child processes\"});","libs":[{"var":"fs","module":"fs"},{"var":"childProcess","module":"child_process"}],"x":650,"y":740,"wires":[]},{"id":"b20a8eaccb2f04cd","type":"inject","z":"f3e346780eaa6c3c","name":"Create child process","props":[{"p":"payload"}],"repeat":"","crontab":"","once":false,"onceDelay":0.1,"topic":"","payload":"create_child_process","payloadType":"str","x":390,"y":740,"wires":[["d2130d2d472f793d"]]},{"id":"e415623437b61e6a","type":"inject","z":"f3e346780eaa6c3c","name":"Kill child process","props":[{"p":"payload"}],"repeat":"","crontab":"","once":false,"onceDelay":0.1,"topic":"","payload":"kill_child_process","payloadType":"str","x":380,"y":780,"wires":[["d2130d2d472f793d"]]},{"id":"5dd5db06e188dadb","type":"function","z":"f3e346780eaa6c3c","name":"Main thread","func":"function blockCpuFor(ms) {\n    var now = new Date().getTime();\n    var result = 0\n    while(true) {\n        result += Math.random() * Math.random();\n        if (new Date().getTime() > now +ms)\n            return;\n    }   \n}\n\nswitch(msg.payload) {\n    case \"start_working\":\n        if (context.timer) {\n            node.error(\"The thread is already working\");\n            return;\n        }\n        else {\n            context.timer = setInterval(function() { \n                blockCpuFor(500);\n            } , 1000);\n            \n            node.status({fill:\"green\", shape:\"dot\", text:\"working...\"});\n        }\n        break;\n    case \"stop_working\":\n        if (!context.timer) {\n            node.error(\"The thread is not yet working\");\n            return;\n        }\n        else {\n            clearInterval(context.timer);\n            context.timer = null;\n            node.status({});\n        }\n}","outputs":0,"noerr":0,"initialize":"node.status({});","finalize":"node.status({});","libs":[{"var":"fs","module":"fs"},{"var":"Sleep","module":"sleep"}],"x":570,"y":540,"wires":[]},{"id":"24cc6c9bee12f5c5","type":"inject","z":"f3e346780eaa6c3c","name":"Start working","props":[{"p":"payload"}],"repeat":"","crontab":"","once":false,"onceDelay":0.1,"topic":"","payload":"start_working","payloadType":"str","x":370,"y":540,"wires":[["5dd5db06e188dadb"]]},{"id":"327e610a51a83312","type":"inject","z":"f3e346780eaa6c3c","name":"Stop working","props":[{"p":"payload"}],"repeat":"","crontab":"","once":false,"onceDelay":0.1,"topic":"","payload":"stop_working","payloadType":"str","x":370,"y":580,"wires":[["5dd5db06e188dadb"]]}]
+```
+1. Start/stop high intensitive CPU work in the Node-RED main thread.
+  
+   Note: you can play with the CPU usage, by adjusting the parameters in the function node.  Currently a timer will use the CPU during 500 msec every 1000 msec, which means about 50% extra load.  When you increase the percentage, be aware that Node-RED will become ***inresponsive***!
+2. Start/stop extra web workers (with high CPU usage), which will change the CPU usage of the main process.
+3. Start/stop extra processes (with high CPU usage), which again execute high intensitive CPU work. 
