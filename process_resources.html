@@ -52,8 +52,9 @@
 </script>
 
 <script type="text/x-red" data-help-name="process-resources">
-    <p>A Node-RED node to monitor the OS processes related to Node-RED.</p>
+    <p>A Node-RED node to monitor the resources used by the OS processes.</p>
     <p>Node-RED runs in a process, which is called the <i>"main"</i> process in this node.  When background processes are spawned, these will become <i>"child"</i> processes of the main process.  This node can be used to calculate the system resources consumed by all these processes.</p>
+    <p>See my <a target="_blank" href="https://github.com/bartbutenaers/node-red-contrib-process-resources/blob/main/README.md">Github readme</a> page for more information and example flows.  Note that those example flows are also available via the Node-RED <a target="_blank" href="notused" onclick="RED.actions.invoke('core:show-import-dialog');return false;">Import dialog</a>.</p>
     <p><strong>Analyze also the child processes:</strong><br/>
     When this option is selected, the child processes are also being analyzed.  Which means the background processes, which have been spawned by the Node-RED parent NodeJs process.  In this case the entire subtree of child processes will be included (i.e. also child processes being spawned by child processes...).</p>
 </script>
