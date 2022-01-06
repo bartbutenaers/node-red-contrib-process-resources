@@ -1,5 +1,5 @@
 # node-red-contrib-process-resources
-A Node-RED node to monitor the resources used by the OS processes.
+A Node-RED node to monitor the resources used by the OS processes (related to Node-RED).
 
 ## Install
 Run the following npm command in your Node-RED user directory (typically ~/.node-red):
