@@ -20,94 +20,165 @@
 
     function ProcessResourcesNode(config) {
         RED.nodes.createNode(this, config);
+        this.process = config.process || "nodered";
+        this.pidField = config.pidField || "";
         this.outputField = config.outputField;
         this.analyzeChildren = config.analyzeChildren;
+        this.flatten = config.flatten;
         this.isBusy = false;
         
         var node = this;
         
-        function analyzeChildProcess(childPids, msg, childrenInfo) {
-            if(childPids.length === 0) {
-                // After all child processes have been analyzed, the main (Node-RED) process needs to be analyzed
-                pidUsage(process.pid, function (err, stats) {
-                    var cpuChildren = 0;
-                    var memoryChildren = 0;
-                    
-                    // Calculate the total cpu and memory of all child processes together
-                    childrenInfo.forEach(function(childInfo) {
-                        cpuChildren += childInfo.cpu;
-                        memoryChildren += childInfo.memory;
-                    });
-                    
-                    // Calculate the total cpu and memory of all child processes and the main process together
-                    var cpuTotal = stats.cpu + cpuChildren;
-                    var memoryTotal = stats.memory + memoryChildren;
-                    
-                    // Count the number of processes (i.e. the main process and the number of child processes)
-                    var processCount = childrenInfo.length + 1;
-                    
-                    var output = {
-                        main: {
-                            cpu: stats.cpu,
-                            memory: stats.memory,
-                            pid: stats.pid
-                        },
-                        children: childrenInfo,
-                        cpuChildren: cpuChildren,
-                        memoryChildren: memoryChildren,
-                        cpuTotal: cpuTotal,
-                        memoryTotal: memoryTotal,
-                        processCount: processCount
+        function roundOneDecimal(number) {
+            return Math.round(number * 10) / 10
+        }
+        
+        function sendMessage(rootProcessStats, childProcessesStats, msg) {
+            var result = {
+                children: childProcessesStats,
+                cpuChildren: 0,
+                memoryChildren: 0,
+                processCount: childProcessesStats.length
+            };
+            
+            // Calculate the total cpu and memory of all child processes together
+            childProcessesStats.forEach(function(childProcessStats) {
+                // Round the cpu to 1 decimal
+                childProcessStats.cpu = roundOneDecimal(childProcessStats.cpu);                
+                
+                result.cpuChildren += childProcessStats.cpu;
+                result.memoryChildren += childProcessStats.memory;
+            });    
+
+            result.cpuTotal = result.cpuChildren;
+            result.memoryTotal = result.memoryChildren;
+                
+            // When there is a root process, then add its statistics in the ouput message.
+            if (rootProcessStats) {
+                // Round the cpu to 1 decimal
+                rootProcessStats.cpu = roundOneDecimal(rootProcessStats.cpu);
+                
+                // Calculate the total cpu and memory of all child processes and the main process together
+                result.cpuTotal += rootProcessStats.cpu;
+                result.memoryTotal += rootProcessStats.memory;
+
+                // Count the (1) root process together with the child processes.
+                // Because processCount contains all the processes (i.e. the main process and all the child processes)
+                result.processCount++;
+               
+                result.main = rootProcessStats;
+            }
+            
+            result.cpuTotal = roundOneDecimal(result.cpuTotal);
+            result.cpuChildren = roundOneDecimal(result.cpuChildren);
+            
+            try {
+                // Pass the result in the specified output location
+                RED.util.setMessageProperty(msg, node.outputField, result);
+            }
+            catch(err) {
+                throw "Error setting result in output msg." + node.outputField + " : " + err.message;
+            }
+            
+            node.send(msg);
+        }
+        
+        function analyzeChildProcesses(rootProcessStats, childProcessIds, msg) {
+            if(childProcessIds.length > 0) {
+                // Get the statistics of the entire array of child process id's.
+                // We won't get statistics for every child process, because some child processes might have been stopped meanwhile
+                // (e.g. the WMIC.exe process for the ps-tree library on Windows)
+                pidUsage(childProcessIds, function (err, childProcessesStats) {
+                    if(err) {
+                        // Seems none of the specified child process id's correspondings to an active process.
+                        // Which means that there is no active child process, so let's only send the main process
+                        sendMessage(rootProcessStats, [], msg);
                     }
-                    
-                    try {
-                        // Pass the output result in the specified output location
-                        RED.util.setMessageProperty(msg, node.outputField, output);
+                    else {
+                        // The childProcessStats is an object, which needs to be converted to an array
+                        sendMessage(rootProcessStats, Object.values(childProcessesStats), msg);
                     }
-                    catch(err) {
-                        throw "Error setting output result result in msg." + node.outputField + " : " + err.message;
-                    }
-                    
-                    node.send(msg);
                 });
             }
             else {
-                // Remove the first child process id from the array
-                var childPid = childPids.shift();
-                
-                // Analyze the first child process id from the array
-                pidUsage(childPid, function (err, stats) {
-                    // It could be that the child process has meanwhile stopped already (e.g. the WMIC.exe process for the ps-tree library on Windows)
-                    if (!err) {
-                        childrenInfo.push({
-                            cpu:    stats.cpu,
-                            memory: stats.memory,
-                            pid:    stats.pid
-                        });
-                    }
-        
-                    // Analyze the remaining child process id (recursively)
-                    analyzeChildProcess(childPids, msg, childrenInfo);
-                });
+                sendMessage(rootProcessStats, [], msg);
             }
         }
 
         node.on("input", function(msg) {
             if(node.isBusy) {
-                node.error("The node is already busy calcuting");
+                node.error("The node is already busy calculating");
                 return;
             }
             
             node.isBusy = true;
-            
+                        
             try {
-                if(node.analyzeChildren) {
-                    pidTree(process.pid, function (err, childPids) {
-                        analyzeChildProcess(childPids, msg, []);
-                    });
-                }
-                else {
-                    analyzeChildProcess([], msg, []);
+                switch(node.process) {
+                    case "nodered":
+                        // The current process is the Node-RED main process, so let's get the usage of that process already
+                        pidUsage(process.pid, function (err, mainProcessStats) {
+                            if(node.analyzeChildren) {
+                                // Get all the child processes of the Node-RED main process
+                                pidTree(process.pid, function (err, childPids) {
+                                    analyzeChildProcesses(mainProcessStats, childPids || [], msg);
+                                });
+                            }
+                            else {
+                                // Only analyze the main Node-RED process
+                                analyzeChildProcesses(mainProcessStats, [], msg);
+                            }
+                        })
+                        break;
+                    case "all":
+                        // Get all the system processes (i.e. no main process)
+                        pidTree(-1, function (err, childPids) {
+                            // PID 0 is a special kind of process:
+                            // - On Windows it is the System Idle Process, which never quits since it isn't a real process.
+                            //   But it has a high cpu usage percentage, when the real processes consume less cpu.
+                            // - On Linux it is the swapper process, which is responsible for paging and isn't a user-mode process.
+                            // Therefore PID 0 will be skipped here...
+                            if(childPids[0] === 0) {
+                                childPids.shift();
+                            }
+                            
+                            analyzeChildProcesses(null, childPids || [], msg);
+                        });
+                        break;
+                    case "pid":
+                        if (!node.pidField || node.pidField.trim() === "") {
+                            node.error("No PID field has been specified");
+                            return;
+                        }
+                        
+                        try {
+                            // Get the pid from the specified input location.
+                            var rootPid = RED.util.evaluateNodeProperty(node.pidField, "msg", this, msg);
+                        } 
+                        catch(err) {
+                            node.error("Error getting pid from msg." + node.pidField + " : " + err.message);
+                            return;
+                        }
+
+                        if(isNaN(rootPid)) {
+                            node.error("The specified PID field should contain an integer number");
+                            return;
+                        }
+                        
+                        pidUsage(rootPid, function (err, rootProcessStats) {
+                            if(node.analyzeChildren) {
+                                // Get all the child processes of the specified root process
+                                pidTree(rootPid, function (err, childPids) {
+                                    analyzeChildProcesses(rootProcessStats, childPids || [], msg);
+                                });
+                            }
+                            else {
+                                // Only analyze the specified root process
+                                analyzeChildProcesses(rootProcessStats, [], msg);
+                            }
+                        })
+                        
+                        break;
                 }
             }
             catch(err) {
