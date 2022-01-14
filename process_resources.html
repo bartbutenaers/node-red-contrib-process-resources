@@ -16,6 +16,11 @@
         color: '#a6bbcf',
         defaults: {
             name: {value:""},
+            process: {value:"nodered"},
+            pidField: {value:"payload", validate: function(v) { 
+                // The pidField is only required when type 'pid' has been selected
+                return this.process === undefined || this.process !== "pid" || this.pidField.trim() !== ""; // ok=true
+            }},
             outputField: {value:"payload"},
             analyzeChildren: {value:true}
         },
@@ -26,6 +31,38 @@
             return this.name || "process resources";
         },
         oneditprepare: function() {
+            // Old nodes don't have a process type (since it was always 'nodered' in version 1.0.0)
+            $('#node-input-process').val(this.process || "nodered");
+            
+            // Old nodes don't have a pidField (version 1.0.0)
+            $('#node-input-pidField').val(this.pidField || "payload");
+            
+            $('#node-input-process').on("change", function() {
+                // Only show the pidField element when the 'pid' option is selected
+                switch(this.value) {
+                    case "nodered":
+                        $('#pidFieldDiv').hide();
+                        $("#analyzeChildrenDiv").show();
+                        break;
+                    case "all":
+                        $('#pidFieldDiv').hide();
+                        $("#analyzeChildrenDiv").hide();
+                        break;                    
+                    case "pid":   
+                        $('#pidFieldDiv').show();
+                        $("#analyzeChildrenDiv").show();
+                        break;
+                }
+            });
+            $('#node-input-process').change();
+            
+            // Show the pid value in a typedinput element (dropdown with only 'msg').
+            // Don't think it has any use to offer it as a fixed text value, because the PID will always change.
+            $("#node-input-pidField").typedInput({
+                default: 'msg',
+                types:['msg']
+            });
+            
             // Show the outputField value in a typedinput element (dropdown with only 'msg')
             $("#node-input-outputField").typedInput({
                 default: 'msg',
@@ -37,13 +74,26 @@
 
 <script type="text/x-red" data-template-name="process-resources">
     <div class="form-row">
-        <label for="node-input-outputField"><i class="fa fa-list"></i> Output info</label>
+        <label for="node-input-process"><i class="fa fa-cogs"></i> Process</label>
+        <select id="node-input-process">
+            <option value="nodered">Node-RED</option>
+            <option value="all">All</option>
+            <option value="pid">Single pid</option>
+        </select>
+    </div>
+    <div class="form-row" id="pidFieldDiv">
+        <label for="node-input-pidField"><i class="fa fa-sign-in"></i> PID field</label>
+        <input id="node-input-pidField" type="text" style="width: 70%">
+    </div>
+    <div class="form-row" id="analyzeChildrenDiv">
+        <input type="checkbox" id="node-input-analyzeChildren" style="display: inline-block; width: auto; vertical-align: top;">
+        <label for="node-input-analyzeChildren" style="width:70%;"> Analyze the child processes</label>
+    </div>
+    <br>
+    <div class="form-row">
+        <label for="node-input-outputField"><i class="fa fa-sign-out"></i> Output field</label>
         <input id="node-input-outputField" type="text" style="width: 70%">
     </div>
-    <div class="form-row">
-        <input type="checkbox" id="node-input-analyzeChildren" style="display: inline-block; width: auto; vertical-align: top;">
-        <label for="node-input-analyzeChildren" style="width:70%;"> Analyze also the child processes</label>
-    </div> 
     <br>
     <div class="form-row">
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
@@ -55,6 +105,14 @@
     <p>A Node-RED node to monitor the resources used by the OS processes.</p>
     <p>Node-RED runs in a process, which is called the <i>"main"</i> process in this node.  When background processes are spawned, these will become <i>"child"</i> processes of the main process.  This node can be used to calculate the system resources consumed by all these processes.</p>
     <p>See my <a target="_blank" href="https://github.com/bartbutenaers/node-red-contrib-process-resources/blob/main/README.md">Github readme</a> page for more information and example flows.  Note that those example flows are also available via the Node-RED <a target="_blank" href="notused" onclick="RED.actions.invoke('core:show-import-dialog');return false;">Import dialog</a>.</p>
-    <p><strong>Analyze also the child processes:</strong><br/>
-    When this option is selected, the child processes are also being analyzed.  Which means the background processes, which have been spawned by the Node-RED parent NodeJs process.  In this case the entire subtree of child processes will be included (i.e. also child processes being spawned by child processes...).</p>
+    <p><strong>Process:</strong><br/>
+    Specify which OS processes need to be analyzed:
+    <ul>
+        <li><code>Node-RED</code>: analyze the main Node-RED process.</li>
+        <li><code>All</code>: analyze all the active OS processes.</li>
+        <li><code>Single pid</code>: analyze the process whose pid has been injected via the specified input message field.</li>
+    </ul></p>
+    <p><strong>Analyze the child processes:</strong><br/>
+    When this option is selected, the child processes are also being analyzed.  Which means the background processes, which have been spawned by the Node-RED parent NodeJs process.  In this case the entire subtree of child processes will be included (i.e. also child processes being spawned by child processes...).
+    When this option is unselected, only the main process is being analyzed.</p>
 </script>
