@@ -20,12 +20,13 @@
 
     function ProcessResourcesNode(config) {
         RED.nodes.createNode(this, config);
-        this.process = config.process || "nodered";
-        this.pidField = config.pidField || "";
-        this.outputField = config.outputField;
+        this.process         = config.process || "nodered";
+        this.pidField        = config.pidField || "";
+        this.outputField     = config.outputField;
         this.analyzeChildren = config.analyzeChildren;
-        this.flatten = config.flatten;
-        this.isBusy = false;
+        this.sortOrder       = config.sortOrder || "asc";
+        this.sortBy          = config.sortBy || "pid";
+        this.isBusy          = false;
         
         var node = this;
         
@@ -40,6 +41,19 @@
                 memoryChildren: 0,
                 processCount: childProcessesStats.length
             };
+            
+            // By default the pidTree library already returns the processes sorted ascending by pid
+            if(node.sortOrder !== "asc" || node.sortBy !== "pid") {
+                result.children.sort(function(a, b) {
+                    var sortBy = node.sortBy;
+                    if(node.sortOrder === "asc") {
+                        return parseFloat(a[sortBy]) - parseFloat(b[sortBy]); // Ascending
+                    }
+                    else {
+                        return parseFloat(b[sortBy]) - parseFloat(a[sortBy]); // Descending
+                    }
+                });
+            }
             
             // Calculate the total cpu and memory of all child processes together
             childProcessesStats.forEach(function(childProcessStats) {
