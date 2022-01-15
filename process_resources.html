@@ -22,6 +22,8 @@
                 return this.process === undefined || this.process !== "pid" || this.pidField.trim() !== ""; // ok=true
             }},
             outputField: {value:"payload"},
+            sortOrder: {value:"asc"},
+            sortBy: {value:"pid"},
             analyzeChildren: {value:true}
         },
         inputs:1,
@@ -31,12 +33,12 @@
             return this.name || "process resources";
         },
         oneditprepare: function() {
-            // Old nodes don't have a process type (since it was always 'nodered' in version 1.0.0)
+            // Convert old nodes (version 1.0.0)
             $('#node-input-process').val(this.process || "nodered");
-            
-            // Old nodes don't have a pidField (version 1.0.0)
             $('#node-input-pidField').val(this.pidField || "payload");
-            
+            $('#node-input-sortOrder').val(this.sortOrder || "asc");
+            $('#node-input-sortBy').val(this.sortBy || "pid");
+
             $('#node-input-process').on("change", function() {
                 // Only show the pidField element when the 'pid' option is selected
                 switch(this.value) {
@@ -75,7 +77,7 @@
 <script type="text/x-red" data-template-name="process-resources">
     <div class="form-row">
         <label for="node-input-process"><i class="fa fa-cogs"></i> Process</label>
-        <select id="node-input-process">
+        <select id="node-input-process" style="width: 70%">
             <option value="nodered">Node-RED</option>
             <option value="all">All</option>
             <option value="pid">Single pid</option>
@@ -86,13 +88,33 @@
         <input id="node-input-pidField" type="text" style="width: 70%">
     </div>
     <div class="form-row" id="analyzeChildrenDiv">
-        <input type="checkbox" id="node-input-analyzeChildren" style="display: inline-block; width: auto; vertical-align: top;">
-        <label for="node-input-analyzeChildren" style="width:70%;"> Analyze the child processes</label>
+        <label for='node-input-analyzeChildren'><i class='fa fa-sitemap'></i> Selection</label>
+        <input type='checkbox' id='node-input-analyzeChildren' style='width:auto ;border:none; vertical-align:baseline;' placeholder='0'>
+        <span for='node-input-analyzeChildren'> Analyze the child processes</span>
     </div>
     <br>
     <div class="form-row">
         <label for="node-input-outputField"><i class="fa fa-sign-out"></i> Output field</label>
         <input id="node-input-outputField" type="text" style="width: 70%">
+    </div>
+    <div class="form-row">
+        <label for="node-input-sortOrder"><i class="fa fa-sort-amount-asc"></i> Sort order</label>
+        <select id="node-input-sortOrder" style="width: 70%">
+            <option value="asc">Ascending</option>
+            <option value="des">Descending</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-sortBy"><i class="fa fa-list"></i> Sort by</label>
+        <select id="node-input-sortBy" style="width: 70%">
+            <option value="cpu">CPU usage</option>
+            <option value="memory">Memory</option>
+            <option value="pid">PID</option>
+            <option value="ppid">PPID</option>
+            <option value="ctime">CPU time</option>
+            <option value="elapsed">Elapsed time</option>
+            <option value="timestamp">Timestamp</option>
+        </select>
     </div>
     <br>
     <div class="form-row">
@@ -105,6 +127,20 @@
     <p>A Node-RED node to monitor the resources used by the OS processes.</p>
     <p>Node-RED runs in a process, which is called the <i>"main"</i> process in this node.  When background processes are spawned, these will become <i>"child"</i> processes of the main process.  This node can be used to calculate the system resources consumed by all these processes.</p>
     <p>See my <a target="_blank" href="https://github.com/bartbutenaers/node-red-contrib-process-resources/blob/main/README.md">Github readme</a> page for more information and example flows.  Note that those example flows are also available via the Node-RED <a target="_blank" href="notused" onclick="RED.actions.invoke('core:show-import-dialog');return false;">Import dialog</a>.</p>
+    <p>For each process the following information will be determined:
+    <ul>
+        <li><code>CPU usage (%)</code>: The CPU usage percentage, within the range from 0 to 100 * the number of cores.</li>
+        <li><code>Memory</code>: The memory usage in bytes.</li>
+        <li><code>PID</code>: The (unique) process identifier number.</li>
+        <li><code>PPID</code>: The parent process identifier number, i.e. the PID of the parent process.</li>
+        <li><code>CPU time</code>: The CPU time used by a process, which is the sum of:
+        <ul>
+            <li><code>User CPU time</code>: The time spent executing user programs.</li>
+            <li><code>System CPU time</code>: The time spent by the kernel executing system calls, on behalf of the process.</li>
+        </ul></li>
+        <li><code>Elapsed time</code>: The duration (in milliseconds) from when the process was started, as a "real wall clock" time.</li>
+        <li><code>Timestamp</code>: The epoch timestamp when the process was started, expressed in milliseconds since January 1st 1970.</li>
+    </ul></p>
     <p><strong>Process:</strong><br/>
     Specify which OS processes need to be analyzed:
     <ul>
@@ -113,6 +149,12 @@
         <li><code>Single pid</code>: analyze the process whose pid has been injected via the specified input message field.</li>
     </ul></p>
     <p><strong>Analyze the child processes:</strong><br/>
-    When this option is selected, the child processes are also being analyzed.  Which means the background processes, which have been spawned by the Node-RED parent NodeJs process.  In this case the entire subtree of child processes will be included (i.e. also child processes being spawned by child processes...).
+    When this option is selected, the child processes are also being analyzed.  Which means the background processes, which have been spawned by the main process.  In this case the entire subtree of child processes will be included (i.e. also child processes being spawned by child processes...).
     When this option is unselected, only the main process is being analyzed.</p>
+    <p><strong>Output field:</strong><br/>
+    Specify in which field of the output message the result needs to be send.</p>
+    <p><strong>Sort order:</strong><br/>
+    Specify whether the child processes in the output (when available) need to be ordered ascending or descending.</p>
+    <p><strong>Sort by:</strong><br/>
+    Specify which field in the output message will be used to order the child processes (when available).</p>
 </script>
