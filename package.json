@@ -1,7 +1,7 @@
 {
     "name": "node-red-contrib-process-resources",
-    "version": "1.0.0",
-    "description": "A Node-RED node to monitor the resources used by the OS processes (related to Node-RED)",
+    "version": "1.1.0",
+    "description": "A Node-RED node to monitor the resources used by the OS processes",
     "dependencies": {
         "pidusage": "^3.0.0",
         "pidtree": "^0.5.0"
