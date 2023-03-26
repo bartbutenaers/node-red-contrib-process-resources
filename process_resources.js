@@ -39,13 +39,24 @@
                 // Get the PIDs of all the child processes (of the root process of the specified root PID)
                 let childProcessIds = await pidTree(rootPid);
 
-                console.log("childProcessIds = " + JSON.stringify(childProcessIds));
-
                 // Get the statistics of the entire array of child process id's.
                 // (e.g. the WMIC.exe process for the ps-tree library on Windows)
                 let childProcessesStats = await pidUsage(childProcessIds);
 
-                console.log("childProcessesStats = " + JSON.stringify(childProcessesStats));
+                // In some rare circumstances, there are no statistics for a child PID (i.e. null):
+                // {
+                //   "11062": {"cpu":0,"memory":1019904,"ctime":0,"elapsed":386960,"timestamp":1679819174299,"pid":11062,"ppid":11031},
+                //   "11063": {"cpu":0,"memory":196608,"ctime":50790,"elapsed":386960,"timestamp":1679819174299,"pid":11063,"ppid":11062},
+                //   "11089": null
+                // }
+                // So we remove those PID's from the childProcessesStats instanceof
+                // For more information, see https://github.com/bartbutenaers/node-red-contrib-process-resources/issues/1
+                childProcessesStats = Object.keys(childProcessesStats).reduce(function(newObj, key) {
+                    if (childProcessesStats[key] !== null) {
+                        newObj[key] = childProcessesStats[key];
+                    }
+                    return newObj;
+                }, {});
 
                 // The childProcessStats is an object, which needs to be converted to an array (via Object.values).
                 return Object.values(childProcessesStats || {});
