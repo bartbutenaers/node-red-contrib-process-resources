@@ -34,13 +34,29 @@
             return Math.round(number * 10) / 10
         }
 
-        async function getChildPids(rootPid) {
+        async function getChildProcessesStatistics(rootPid) {
             try {
-                return await pidTree(rootPid);
+                // Get the PIDs of all the child processes (of the root process of the specified root PID)
+                let childProcessIds = await pidTree(rootPid);
+
+                console.log("childProcessIds = " + JSON.stringify(childProcessIds));
+
+                // Get the statistics of the entire array of child process id's.
+                // (e.g. the WMIC.exe process for the ps-tree library on Windows)
+                let childProcessesStats = await pidUsage(childProcessIds);
+
+                console.log("childProcessesStats = " + JSON.stringify(childProcessesStats));
+
+                // The childProcessStats is an object, which needs to be converted to an array (via Object.values).
+                return Object.values(childProcessesStats || {});
             }
             catch(err) {
-                // When 'No matching pid found' then we just return an empty array
-                return [];
+                if (err.message === "No matching pid found") {
+                    // Seems that all the specified child pid's correspond to processes that meanwhile became inactive
+                    return [];
+                }
+                
+                throw err;
             }
         }
 
@@ -52,7 +68,7 @@
             
             node.isBusy = true;
             
-            let childPids, rootProcessStats;
+            let rootProcessStats, childProcessesStats;
                         
             try {
                 switch(node.process) {
@@ -61,24 +77,24 @@
                         rootProcessStats = await pidUsage(process.pid);
                         if(node.analyzeChildren) {
                             // Get all the child processes of the Node-RED main process
-                            childPids = await getChildPids(process.pid);
+                            childProcessesStats = await getChildProcessesStatistics(process.pid);
                         }
                         else {
                             // Only analyze the main Node-RED process
-                            childPids = [];
+                            childProcessesStats = [];
                         }
                         break;
                     case "all":
                         // Get all the system processes (i.e. no main process)
-                        childPids = await getChildPids(-1);
+                        childProcessesStats = await getChildProcessesStatistics(-1);
 
                         // PID 0 is a special kind of process:
                         // - On Windows it is the System Idle Process, which never quits since it isn't a real process.
                         //   But it has a high cpu usage percentage, when the real processes consume less cpu.
                         // - On Linux it is the swapper process, which is responsible for paging and isn't a user-mode process.
                         // Therefore PID 0 will be skipped here...
-                        if(childPids[0] === 0) {
-                            childPids.shift();
+                        if(childProcessesStats[0] === 0) {
+                            childProcessesStats.shift();
                         }
                             
                         // rootProcessStats is null
@@ -108,33 +124,15 @@
 
                         if(node.analyzeChildren) {
                             // Get all the child processes of the specified root process
-                            childPids = await getChildPids(rootPid);
+                            childProcessesStats = await getChildProcessesStatistics(rootPid);
                         }
                         else {
                             // Only analyze the specified root process
-                            childPids = [];
+                            childProcessesStats = [];
                         }
                         
                         break;
                 }
-
-                let childProcessesStats;
-
-                try {
-                    // Get the statistics of the entire array of child process id's.
-                    // We won't get statistics for every child process, because some child processes might have been stopped meanwhile
-                    // (e.g. the WMIC.exe process for the ps-tree library on Windows)
-                    childProcessesStats = await pidUsage(childPids);
-                }
-                catch(err) {
-                    // When 'No matching pid found' this means there are no child stats
-                    childProcessesStats = {};
-                }
-
-                // The childProcessStats is an object, which needs to be converted to an array (via Object.values).
-                // The childProcessStats can be empty, if there are none of the child ids belong to active processes.
-                // In that case only the main process stats will be send.
-                childProcessesStats = Object.values(childProcessesStats || {});
 
                 var result = {
                     children: childProcessesStats,
